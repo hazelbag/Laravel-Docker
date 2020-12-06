@@ -1,0 +1,121 @@
+# Docker version to be used defined
+version: '3.8'
+
+# This will be the name for the image
+networks:
+  laravel:
+    name: laravel
+
+# Define the required services for docker container
+# Each service will have an image (Select latest stable versions)
+# Ports mapped to localhost
+# These are the files/folders that will be mapped to the image
+# and will be editable outside and changes wil reflect
+# MySQL requires auth details for the DB to be used, needs to be specified in the ENVIRONMENT tag
+# With the nginx conf file, the image wont be built with image but rather build and context and a path to the nginx
+# configuration file which contains the image instead of the docker compose
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx.dockerfile
+    container_name: nginx
+    depends_on:
+      - php
+      - mysql
+      - redis
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./src:/var/www/html
+    networks:
+      - laravel
+
+  php:
+    build:
+      context: .
+      dockerfile: php.dockerfile
+    container_name: php
+    volumes:
+      - ./src:/var/www/html
+    networks:
+      - laravel
+
+  mysql:
+    image: mysql:5.7.32
+    container_name: mysql
+    ports:
+      - 5306:3306
+    volumes:
+      - ./mysql:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: laravelPlay
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: secret
+    networks:
+      - laravel
+
+  composer:
+    image: composer:latest
+    container_name: composer
+    volumes:
+      - ./src:/var/www/html
+    working_dir: /var/www/html
+    networks:
+      - laravel
+
+  artisan:
+    build:
+      context: .
+      dockerfile: php.dockerfile
+    container_name: php
+    volumes:
+      - ./src:/var/www/html
+    working_dir: /var/www/html
+    entrypoint: ['php', 'artisan']
+    networks:
+      - laravel
+
+  npm:
+    image: node:13.7
+    container_name: npm
+    volumes:
+      - ./src:/var/www/html
+    working_dir: /var/www/html
+    entrypoint: ['npm']
+    networks:
+      - laravel
+
+  phpunit:
+    build:
+      context: .
+      dockerfile: php.dockerfile
+    container_name: phpunit
+    volumes:
+      - ./src:/var/www/html
+    working_dir: /var/www/html
+    entrypoint: ['/var/www/html/vendor/bin/phpunit']
+    networks:
+      - laravel
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - 6379:6379
+    networks:
+      - laravel
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: php.dockerfile
+    container_name: scheduler
+    volumes:
+      - ./src:/var/www/html
+    working_dir: /var/www/html
+    entrypoint: ['php', 'artisan', 'schedule:work']
+    networks:
+      - laravel
